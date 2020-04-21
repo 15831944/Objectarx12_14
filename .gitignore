@@ -38,3 +38,4 @@ $tf*/
 *.res
 *.exp
 *.arx
+*.ipch
