@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "QiangToLiang14", "QiangToLi
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EcdZheZhao", "EcdZheZhao\EcdZheZhao.vcxproj", "{27D7612C-0FCF-4BC1-9667-EC9155D0D3A4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EcdMirror", "EcdMirror\EcdMirror.vcxproj", "{FDD7E34F-41E9-48A6-9783-C5A3424699DC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -37,6 +39,12 @@ Global
 		{27D7612C-0FCF-4BC1-9667-EC9155D0D3A4}.Release|Win32.ActiveCfg = Release|Win32
 		{27D7612C-0FCF-4BC1-9667-EC9155D0D3A4}.Release|Win32.Build.0 = Release|Win32
 		{27D7612C-0FCF-4BC1-9667-EC9155D0D3A4}.Release|x64.ActiveCfg = Release|Win32
+		{FDD7E34F-41E9-48A6-9783-C5A3424699DC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{FDD7E34F-41E9-48A6-9783-C5A3424699DC}.Debug|Win32.Build.0 = Debug|Win32
+		{FDD7E34F-41E9-48A6-9783-C5A3424699DC}.Debug|x64.ActiveCfg = Debug|x64
+		{FDD7E34F-41E9-48A6-9783-C5A3424699DC}.Release|Win32.ActiveCfg = Release|Win32
+		{FDD7E34F-41E9-48A6-9783-C5A3424699DC}.Release|Win32.Build.0 = Release|Win32
+		{FDD7E34F-41E9-48A6-9783-C5A3424699DC}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
