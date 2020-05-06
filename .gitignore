@@ -27,5 +27,20 @@ _ReSharper*/
 [Tt]est[Rr]esult*
 *.vssscc
 $tf*/
+<<<<<<< HEAD
 *.opensdf
 *.sdf
+=======
+*.tlog
+*.idb
+*.rc
+*.sdf
+*.opensdf
+*.lastbuildstate
+*.unsuccessfulbuild
+*.manifest
+*.res
+*.exp
+*.arx
+*.ipch
+>>>>>>> 16edaa8caf7fac8cc3916ea32d3ee88fb1b0c7f0
