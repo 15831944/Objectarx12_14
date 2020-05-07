@@ -5,6 +5,9 @@
 #include "acedCmdNF.h"
 #include<vector>
 #include"MoveJig.h"
+#include <shlwapi.h>
+
+#pragma comment(lib,"Shlwapi.lib")
 
 using namespace std;
 //-----------------------------------------------------------------------------
@@ -90,28 +93,6 @@ public:
 
 	static void  ECDMyGroupEcdUpMR() {
 
-		CString path = acDocManager->curDocument()->fileName();
-
-		int lastInt = path.ReverseFind('\\');
-
-
-		CString fileName = path.Mid(lastInt + 1);
-		int lastDot = fileName.ReverseFind('.');
-
-		CString newFileName;
-		newFileName.Format(L"%s_M", fileName.Mid(0, lastDot));
-
-		CString copyFile;
-		copyFile.Format(L"%s_M_C", fileName.Mid(0, lastDot));
-
-		CString  newPath;
-		newPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), newFileName);
-
-		CString  copyPath;
-		copyPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), copyFile);
-
-		AcDbObjectIdArray filterIds, otherIds;
-
 		AcDbObjectIdArray oIds;
 		GetSel(oIds);
 
@@ -167,84 +148,20 @@ public:
 					l->close();
 					continue;
 				}
-				else {
-					AcDbDimension *dim = NULL;
-					AcDbText *txt = NULL;
-					AcDbMText *mTxt = NULL;
-
-					if (l->layerId().isNull() == false)
-					{
-						otherIds.append(l->layerId());
-
-					}
-					if (l->linetypeId().isNull() == false) {
-						otherIds.append(l->linetypeId());
-					}
-
-					dim = AcDbDimension::cast(l);
-
-					if (dim != NULL) {
-						if (dim->dimensionStyle().isNull() == false) {
-							otherIds.append(dim->dimensionStyle());
-						}
-					}
-					else if (l->isA() == AcDbText::desc())
-					{
-						txt = AcDbText::cast(l);
-
-						if (txt->textStyle().isNull() == false) {
-
-							otherIds.append(txt->textStyle());
-						}
-
-					}
-					else if (l->isA() == AcDbMText::desc())
-					{
-						mTxt = AcDbMText::cast(l);
-
-						if (mTxt->textStyle().isNull() == false) {
-
-							otherIds.append(mTxt->textStyle());
-						}
-					}
-
-					filterIds.append(oIds[i]);
-					l->close();
-				}
-
-
 			}
 		}
 
 		CMoveJig jig(formPt, toPt);
 
-		jig.UpdateDoIt(filterIds, true);
+		jig.UpdateDoIt(oIds, true);
 
-		if (jig.m_idsC.length() == 0) {
+		/*if (jig.m_idsC.length() == 0) {
 			return;
-		}
-		acutPrintf(L"\notherids=%d\n", otherIds.length());
-		otherIds.append(jig.m_idsC);
+		}*/
 
-		for (int j=0;j<otherIds.length();j++){
+		
 
-			AcDbObjectId id1=otherIds[j];
-
-			for (int m=j+1;m<otherIds.length();m++)
-			{
-
-				AcDbObjectId id2=otherIds[m];
-
-				if(id1==id2){
-
-					otherIds.remove(id2);
-
-				}
-			}
-		}
-
-
-		CopyFile(newPath, copyPath, TRUE);
+		/*CopyFile(newPath, copyPath, TRUE);
 
 		DeleteFile(newPath);
 
@@ -258,7 +175,7 @@ public:
 			CopyFile(copyPath, newPath, FALSE);
 
 			DeleteFile(copyPath);
-		}
+		}*/
 
 		/*for (int i = 0; i < jig.m_idsC.length(); i++)
 		{
@@ -273,80 +190,11 @@ public:
 		}*/
 
 		//DeepClone(otherIds, newPath);
-		/*AcDbDatabase *pDb = new AcDbDatabase(false,true);
-
-		ErrorStatus es = pDb->readDwgFile(newPath, AcDbDatabase::kForReadAndWriteNoShare);
-
-
-
-		if (es != ErrorStatus::eOk) {
-
-			delete pDb;
-			pDb = NULL;
-
-			acutPrintf(L"镜像文件被删除，请重新镜像之后，在更新");
-			return;
-
-		}
-
-		for (int i=0;i<jig.m_idsC.length();i++)
-		{
-			AcDbEntity * l = NULL;
-
-			if (acdbOpenObject(l, jig.m_idsC[i], AcDb::kForWrite) == Acad::eOk) {
-
-				AcDbEntity * lC = NULL;
-
-				lC = AcDbEntity::cast(l->clone());
-
-
-				PostToModelSpace(lC, pDb);
-
-				l->close();
-
-			}
-
-
-		}
-
-
-		es=pDb->closeInput(Adesk::kTrue);
-
-		es=pDb->saveAs(newPath);
-
-		delete pDb;
-
-		pDb = NULL;*/
 		
-
-		/*	AcDbBlockTable *pBlockTable;
-			pDb->getSymbolTable(pBlockTable, AcDb::kForRead);
-
-			AcDbBlockTableRecord *pBlkTblRcd;
-			pBlockTable->getAt(ACDB_MODEL_SPACE, pBlkTblRcd, AcDb::kForRead);
-			pBlockTable->close();*/
-
-
-
-
-
-			//创建块表记录遍历器
-			//AcDbBlockTableRecordIterator *pItr; //块表记录遍历器
-			//pBlkTblRcd->newIterator(pItr);
-			//pBlkTblRcd->close();
-			//AcDbEntity *pEnt = NULL; //遍历的临时实体指针
-			//for (pItr->start(); !pItr->done(); pItr->step()) {
-			//	//利用遍历器获得每一个实体
-			//	pItr->getEntity(pEnt, AcDb::kForWrite);
-
-			//	pEnt->erase();
-			//	pEnt->close();
-			//}
 	}
 
 
 	static void ECDMyGroupEcdMR() {
-
 
 		CString path = acDocManager->curDocument()->fileName();
 
@@ -362,15 +210,13 @@ public:
 		CString  newPath;
 		newPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), newFileName);
 
-		
+		CString aixPath;
+		aixPath.Format(L"%s\\%s.txt", path.Mid(0, lastInt), newFileName);
 
-		AcDbObjectIdArray filterIds, otherIds;
 
 		AcDbObjectIdArray oIds;
+
 		GetSel(oIds);
-
-		acutPrintf(L"\oIds=%d\n", oIds.length());
-
 		ads_point pt1;
 
 		AcGePoint3d fPt;
@@ -397,109 +243,23 @@ public:
 					return;
 					//continue;
 				}
-				else {
-					AcDbDimension *dim = NULL;
-					AcDbText *txt = NULL;
-					AcDbMText *mTxt = NULL;
-
-					if (l->layerId().isNull() == false)
-					{
-						otherIds.append(l->layerId());
-
-					}
-					if (l->linetypeId().isNull() == false) {
-						otherIds.append(l->linetypeId());
-					}
-
-					dim = AcDbDimension::cast(l);
-
-					if (dim != NULL) {
-						if (dim->dimensionStyle().isNull() == false) {
-							otherIds.append(dim->dimensionStyle());
-						}
-					}
-					else if (l->isA() == AcDbText::desc())
-					{
-						txt = AcDbText::cast(l);
-
-						if (txt->textStyle().isNull() == false) {
-
-							otherIds.append(txt->textStyle());
-						}
-
-					}
-					else if (l->isA() == AcDbMText::desc())
-					{
-						mTxt = AcDbMText::cast(l);
-
-						if (mTxt->textStyle().isNull() == false) {
-
-							otherIds.append(mTxt->textStyle());
-						}
-					}
-
-					filterIds.append(oIds[i]);
-					l->close();
-				}
-
-
 			}
 		}
 
 
 		CMoveJig jig(fPt);
 
-		jig.doIt(filterIds, true);
+		jig.doIt(oIds, true);
 
-		//acutPrintf(L"\n%d", jig.m_idsC.length());
 
 		if (jig.m_idsC.length() == 0) {
 			return;
 		}
 
-		acutPrintf(L"\notherids1=%d\n", otherIds.length());
-		acutPrintf(L"\jig.m_idsC1=%d\n", jig.m_idsC.length());
-		/*for (int j=0;j<oIds.length();j++)
-		{
-			if(jig.m_idsC.contains(oIds[j])){
-				jig.m_idsC.remove(oIds[j]);
-			}
-			if(otherIds.contains(oIds[j]))
-			{
-			   otherIds.remove(oIds[j]);
-			}
+	CString strHdl;
+	ACHAR *buffer;
 
-
-		}*/
-		acutPrintf(L"\notherids2=%d\n", otherIds.length());
-		acutPrintf(L"\jig.m_idsC2=%d\n", jig.m_idsC.length());
-
-		otherIds.append(jig.m_idsC);
-
-
-		for (int j=0;j<otherIds.length();j++){
-			
-			AcDbObjectId id1=otherIds[j];
-			
-			for (int m=j+1;m<otherIds.length();m++)
-			{
-
-				AcDbObjectId id2=otherIds[m];
-
-				if(id1==id2){
-
-					otherIds.remove(id2);
-
-				}
-			}
-		}
-
-
-		DeepClone(otherIds, newPath);
-
-		
-
-		for (int i = 0; i < oIds.length(); i++)
+	for (int i = 0; i < oIds.length(); i++)
 		{
 			AcDbEntity * l = NULL;
 
@@ -531,23 +291,125 @@ public:
 				l->close();
 
 			}
+		
+			AcDbHandle h=oIds[i].handle();
+
+			buffer=new ACHAR[5];
+
+			h.getIntoAsciiBuffer(buffer);
+			strHdl+=buffer;
+			delete []buffer;
+
+			buffer=NULL;
+		}
+		
+	CString strFpt;
+	strFpt.Format(L"%f,%f,%f",fPt.x,fPt.y,fPt.z);
+
+	CString strEpt;
+	strEpt.Format(L"%f,%f,%f",jig.m_ToPoint.x,jig.m_ToPoint.y,jig.m_ToPoint.z);
+
+	CString wStr;
+
+	wStr.Format(L"%s|%s|%s",strHdl,strFpt,strEpt);
+
+	CFile f;
+
+	if(PathFileExists(aixPath)==FALSE){
+		if(f.Open(aixPath, CFile::modeCreate | CFile::modeWrite)!=0){
+
+			f.Write(wStr,wStr.GetLength()*sizeof(wchar_t));
+
+			f.Close();
+		}
+	}
+	else{
+
+		CString strE;
+		if (f.Open(aixPath, CFile::modeReadWrite, NULL)) {
+			char buffer1[256];
+			if (f.Read(buffer1, 2) == 2)
+			{
+				switch (buffer1[0])
+				{
+				case 0xBBEF:
+					strE=ReadUTF8(f);
+					return;
+				case 0xFFFE:
+					strE=ReadUnicode(f);
+					return;
+				}
+			}
+			strE=ReadAnsi(f);
+		}
+		else {
+			AfxMessageBox(_T("打开记录轴的文件失败！"));
+			f.Close();
+			return;
+			
+		}
+	f.Close();
+		
+	wStr+=L"\r\n"+strE;
+	
+		AfxMessageBox(strE);
+	
+
+		if(f.Open(aixPath,CFile::modeNoTruncate|CFile::modeWrite)!=0){
+
+			f.SeekToBegin();
+
+			f.Write(wStr,wStr.GetLength()*sizeof(wchar_t));
+
+			f.Close();
+
+		}
+	}
+
+		
+	}
+	static void ECDMyGroupEcdCC(){
+	
+		CString path = acDocManager->curDocument()->fileName();
+
+		int lastInt = path.ReverseFind('\\');
+
+
+		CString fileName = path.Mid(lastInt + 1);
+		int lastDot = fileName.ReverseFind('.');
+
+		CString newFileName;
+		newFileName.Format(L"%s_M", fileName.Mid(0, lastDot));
+
+		CString  newPath;
+		newPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), newFileName);
+
+		AcDbObjectIdArray  ids;
+		
+		GetSel(ids);
+
+		if(ids.length()==0){
+			return;
 		}
 
-
-		/*for (int i = 0; i < jig.m_idsC.length(); i++)
+		if(DeepClone(ids,newPath))
+		{
+		for (int i = 0; i > ids.length(); i++)
 		{
 			AcDbEntity * l = NULL;
 
-			if (acdbOpenObject(l, jig.m_idsC[i], AcDb::kForWrite) == Acad::eOk) {
-			
+			if (acdbOpenObject(l, ids[i], AcDb::kForWrite) == Acad::eOk) {
+
 				l->erase();
 				l->close();
 				l = NULL;
 			}
-		}*/
-acutPrintf(L"\otherIds3=%d\n", otherIds.length());
+		}
+		}
+		else{
+			AfxMessageBox(L"复制时出错，请重新操作。");
+		}
 	}
-
 	static void   GetSel( AcDbObjectIdArray & ids) {
 		ads_name aName;
 		
@@ -577,9 +439,7 @@ acutPrintf(L"\otherIds3=%d\n", otherIds.length());
 	static  bool DeepClone(AcDbObjectIdArray & ids, CString path)
 	{
 		ErrorStatus es = ErrorStatus::eOk;
-		AcDbBlockTable *pBlockTable;
-		acdbHostApplicationServices()->workingDatabase()
-			->getSymbolTable(pBlockTable, AcDb::kForRead);
+		
 
 		AcDbObjectId  modelSpaceId;
 
@@ -599,17 +459,26 @@ acutPrintf(L"\otherIds3=%d\n", otherIds.length());
 
 		pTempDb->getSymbolTable(pBT1, AcDb::kForRead);
 		pBT1->getAt(ACDB_MODEL_SPACE, modelSpaceId);
+		
 		pBT1->close();
 
 		es = pTempDb->wblockCloneObjects(ids, modelSpaceId, idMap, AcDb::kDrcIgnore);
 		
+		
+
 		if (es != ErrorStatus::eOk) {
+			delete pTempDb;
+			pTempDb=NULL;
 			return false;
 		}
 		es = pTempDb->saveAs(path);
 		if (es != ErrorStatus::eOk) {
+			delete pTempDb;
+			pTempDb=NULL;
 			return false;
 		}
+		delete pTempDb;
+		pTempDb=NULL;
 		return true;
 
 
@@ -805,6 +674,56 @@ acutPrintf(L"\otherIds3=%d\n", otherIds.length());
 
 		return objId;
 	}
+
+	static CString ReadAnsi(CFile& file)//读取方式1：ANSI //传对象传引用
+	{
+		file.Seek(0, CFile::begin);//回到头开始
+		char buff[1024];
+		UINT nRet = 0;//三种文件：ANSI:窄字符集 Unicode:宽字符集也叫UTF-16 UTF-8:窄字符集：属于Unicode 
+		CString str;
+		while (nRet = file.Read(buff, sizeof(buff) - 1))//nRet != 0
+		{
+			buff[nRet] = _T('\0');
+			str += buff;
+		}
+		return str;
+	}
+
+	static CString ReadUTF8(CFile& file)//UTF-8文件编码读取
+	{
+		AfxMessageBox(L"UTF8");
+
+		file.Seek(3, CFile::begin);//向后移动三个字节
+		LONGLONG nLen = file.GetLength();//64位操作系统
+		char* p = new char[nLen + 1];
+		nLen = file.Read(p, nLen);
+		p[nLen] = '\0';
+		TCHAR* pText = new TCHAR[nLen / 2 + 2];//防止不够 + 2
+		nLen = MultiByteToWideChar(CP_UTF8, NULL, p, -1, pText, nLen / 2 + 2);//代入p 传出 pText
+		CString str(pText);
+
+		
+		delete[] p;
+		delete[] pText;
+		return str;
+	}
+
+	static CString ReadUnicode(CFile& file)//Unicode文件编码获取
+	{
+		
+		AfxMessageBox(L"ReadUnicode");
+		file.Seek(2, CFile::begin);//向后移动三个字节
+		LONGLONG nLen = file.GetLength();//64位操作系统
+		TCHAR* pText = new TCHAR[nLen / 2 + 1];//防止不够 + 1
+		nLen = file.Read(pText, nLen);
+		pText[nLen / 2] = _T('\0');
+		//SetDlgItemText(IDC_EDIT1, pText);
+
+		CString str(pText);
+		delete[] pText;
+		return str;
+	}
+
 };
 
 //-----------------------------------------------------------------------------
@@ -813,4 +732,4 @@ IMPLEMENT_ARX_ENTRYPOINT(CEcdMirrorApp)
 ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdMR, EcdMR, ACRX_CMD_MODAL, NULL)
 ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdRR, EcdRR, ACRX_CMD_MODAL, NULL)
 ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdUpMR, EcdUpMR, ACRX_CMD_MODAL, NULL)
-
+ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdCC, EcdCC, ACRX_CMD_MODAL, NULL)
