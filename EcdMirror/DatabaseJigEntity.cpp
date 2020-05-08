@@ -2,6 +2,7 @@
 #include "DatabaseJigEntity.h"
 #include <vector>
 #include "acedCmdNF.h"
+#define PI 3.1415926
 using namespace std;
 CDatabaseJigEntity::CDatabaseJigEntity()
 {
@@ -104,6 +105,7 @@ BOOL CDatabaseJigEntity::transformedCopy()
 		AcDbDimension *dim = NULL, *dimC = NULL;
 		AcDbText *txt = NULL;
 		AcDbMText*mtxt = NULL;
+		AcDbLine*line=NULL;
 		AcGeVector3d vec = AcGeVector3d::kIdentity;
 
 		dim = AcDbDimension::cast(pEnt);
@@ -151,7 +153,14 @@ BOOL CDatabaseJigEntity::transformedCopy()
 			dimC->setNormal(vec);
 
 		}
+		if(pNewEnt->isA()==AcDbLine::desc()){
 
+			line=AcDbLine::cast(pNewEnt);
+
+			ChangeLine(line,AcDbLine::cast(pEnt));
+
+
+		}
 		
 		
 		AcDbObjectId oId;
@@ -160,6 +169,10 @@ BOOL CDatabaseJigEntity::transformedCopy()
 		if (dimC != NULL) {
 			pBlkRec->appendAcDbEntity(oId, dimC);
 			acTransactionManagerPtr()->addNewlyCreatedDBRObject(dimC);
+		}
+		else if(line!=NULL){
+			pBlkRec->appendAcDbEntity(oId, line);
+			acTransactionManagerPtr()->addNewlyCreatedDBRObject(line);
 		}
 		else {
 			pBlkRec->appendAcDbEntity(oId, pNewEnt);
@@ -207,6 +220,53 @@ BOOL CDatabaseJigEntity::transformedCopy()
 		acdbEntLast(l);
 
 		acdbGetObjectId(getId, l);
+
+	}
+
+	void CDatabaseJigEntity::ChangeLine(AcDbLine* newLine, AcDbLine*oLine)
+	{
+
+		AcGeVector3d vec1=oLine->startPoint()-oLine->endPoint();
+	
+		AcGePoint3d pt1=newLine->startPoint();
+		AcGePoint3d pt2=newLine->endPoint();
+
+		AcGePoint3d cPt=AcGePoint3d((pt1.x+pt2.x)/2,(pt1.y+pt2.y)/2,0);
+
+		AcGeVector3d vec2=pt1-pt2;
+
+		double angle=vec2.angleTo(vec1);
+		angle=angle/PI*180;
+
+		/*CString text;
+
+		text.Format(L"angle=%f",angle);
+		AfxMessageBox(text);*/
+		if(angle>90){
+
+		AcGeVector3d vecT=vec2.rotateBy(PI/2,AcGeVector3d::kZAxis);
+
+		AcGePoint3d pt4=cPt+vecT.normal()*200;
+
+		AcGeMatrix3d mtx;
+
+		mtx.setToMirroring(AcGeLine3d(pt4,cPt));
+
+		newLine->transformBy(mtx);
+
+
+
+		}
+		else{
+
+
+			AcGeMatrix3d mtx;
+
+			mtx.setToMirroring(AcGeLine3d(pt1,pt2));
+
+			newLine->transformBy(mtx);
+
+		}
 
 	}
 

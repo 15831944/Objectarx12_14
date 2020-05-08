@@ -6,6 +6,9 @@
 #include<vector>
 #include"MoveJig.h"
 #include <shlwapi.h>
+#include"StringUtil.h"
+#include "algorithm" //sort函数、交并补函数
+#include "iterator" //求交并补使用到的迭代器
 
 #pragma comment(lib,"Shlwapi.lib")
 
@@ -45,7 +48,7 @@ public:
 	virtual void RegisterServerComponents() {
 	}
 
-	static void ECDMyGroupEcdRR()
+	/*static void ECDMyGroupEcdRR()
 	{
 
 
@@ -89,12 +92,75 @@ public:
 
 		acedSSFree(ent);
 
-	}
+	}*/
 
 	static void  ECDMyGroupEcdUpMR() {
 
+		CString path = acDocManager->curDocument()->fileName();
+
+		int lastInt = path.ReverseFind('\\');
+
+
+		CString fileName = path.Mid(lastInt + 1);
+		int lastDot = fileName.ReverseFind('.');
+
+		CString newFileName;
+		newFileName.Format(L"%s_M", fileName.Mid(0, lastDot));
+
+		CString copyFileName;
+		copyFileName.Format(L"%s_M_C", fileName.Mid(0, lastDot));
+
+		CString  newPath;
+		newPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), newFileName);
+
+		CString aixPath;
+		aixPath.Format(L"%s\\%s.txt", path.Mid(0, lastInt), newFileName);
+
+		CString  cPath;
+		cPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), copyFileName);
+
+
 		AcDbObjectIdArray oIds;
 		GetSel(oIds);
+
+		for (int i = 0; i < oIds.length(); i++)
+		{
+			AcDbEntity * l = NULL;
+
+			if (acdbOpenObject(l, oIds[i], AcDb::kForRead) == Acad::eOk) {
+
+				if (l->isA() == AcDbBlockReference::desc()) {
+
+					l->close();
+
+					acutPrintf(L"所选集合不能有块\n");
+
+					return;
+				}
+			}
+		}
+
+		vector<CString>vecHex;
+		for (int i = 0; i < oIds.length(); i++){
+		
+			AcDbHandle h=oIds[i].handle();
+
+			Adesk::UInt32 high=h.high();
+			Adesk::UInt32 low=h.low();
+
+			CString strNum;
+			strNum.Format(L"%d%d",high,low);
+
+			int num=_ttoi(strNum);
+
+			strNum="";
+			strNum.Format(L"%X",num);
+
+			vecHex.push_back(strNum);
+		}
+
+	
+
 
 		AcGePoint3d formPt, toPt;
 		bool findPt = false;
@@ -132,28 +198,112 @@ public:
 		}
 
 		if (!findPt) {
-			acutPrintf(L"没有找到对称轴数据");
-			return;
-		}
+			vector<CString>vecStr;
 
+			CFile file;
+			CFileException pError;
+			if(file.Open(aixPath,CFile::modeReadWrite,&pError)!=0){
 
-		for (int i = 0; i < oIds.length(); i++)
-		{
-			AcDbEntity * l = NULL;
-
-			if (acdbOpenObject(l, oIds[i], AcDb::kForRead) == Acad::eOk) {
-
-				if (l->isA() == AcDbBlockReference::desc()) {
-
-					l->close();
-					continue;
-				}
+				CString allStr=ReadUnicode(file);
+				
+				CStringUtil::Split(allStr,L"\r\n",vecStr,false);
+				
+			}else{
+				//AfxMessageBox(pError.m_cause);
+				acutPrintf(L"不存在对称轴数据文件\n");
+				file.Close();
+				return;
 			}
+			file.Close();
+			
+			if(vecStr.size()==0){
+				acutPrintf(L"称轴数据文件沒有记录\n");
+				return;
+
+			}
+
+			CString find;
+			for (int i=0;i<(int)vecStr.size();i++)
+			{
+				CString strOne=vecStr[i];
+
+				vector<CString>vecO;
+
+				CStringUtil::Split(strOne,L"&",vecO,false);
+
+				vector<CString> v;
+				sort(vecO.begin(),vecO.end());   
+				sort(vecHex.begin(),vecHex.end());   
+				set_intersection(vecO.begin(),vecO.end(),vecHex.begin(),vecHex.end(),back_inserter(v));
+
+				SIZE_T max=(int)vecO.size()-1>vecHex.size()?vecHex.size():vecO.size()-1;
+
+				int stand=(int)max/2;
+
+				if(stand<1)
+					stand=1;
+
+				if(v.size()>=stand){
+
+					find=strOne;
+					break;
+
+				}
+
+			}
+
+			if(find.IsEmpty()==true){
+
+				acutPrintf(L"称轴数据文件中不存在对应的记录\n");
+				return;
+
+			}
+
+			vector<CString>vecF;
+			vector<CString>vecPt;
+			CStringUtil::Split(find,L"|",vecF,false);
+
+			CString s1=vecF[1];
+			CString s2=vecF[2];
+
+			CStringUtil::Split(s1,L",",vecPt,false);
+
+			formPt.x=_wtof(vecPt[0]);
+			formPt.y=_wtof(vecPt[1]);
+			formPt.z=_wtof(vecPt[2]);
+		
+			vecPt.clear();
+
+
+			CStringUtil::Split(s2,L",",vecPt,false);
+
+			toPt.x=_wtof(vecPt[0]);
+			toPt.y=_wtof(vecPt[1]);
+			toPt.z=_wtof(vecPt[2]);
+
 		}
 
 		CMoveJig jig(formPt, toPt);
 
 		jig.UpdateDoIt(oIds, true);
+
+
+		CopyFile(newPath,cPath,FALSE);
+
+
+		if(DeepClone(jig.m_idsC,newPath)){
+
+			DeleteFile(cPath);
+			acutPrintf(L"更新成功");
+
+		}
+		else{
+
+			DeleteFile(newPath);
+			CopyFile(cPath,newPath,FALSE);
+			acutPrintf(L"更新文件不成功！");
+
+		}
 
 		/*if (jig.m_idsC.length() == 0) {
 			return;
@@ -210,9 +360,16 @@ public:
 		CString  newPath;
 		newPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), newFileName);
 
+		
+
+		CString copyFileName;
+		copyFileName.Format(L"%s_M_C", fileName.Mid(0, lastDot));
+
 		CString aixPath;
 		aixPath.Format(L"%s\\%s.txt", path.Mid(0, lastInt), newFileName);
 
+		CString  cPath;
+		cPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), copyFileName);
 
 		AcDbObjectIdArray oIds;
 
@@ -294,13 +451,21 @@ public:
 		
 			AcDbHandle h=oIds[i].handle();
 
-			buffer=new ACHAR[5];
+			Adesk::UInt32 high=h.high();
+			Adesk::UInt32 low=h.low();
 
-			h.getIntoAsciiBuffer(buffer);
-			strHdl+=buffer;
-			delete []buffer;
+			CString strNum;
+			strNum.Format(L"%d%d",high,low);
 
-			buffer=NULL;
+			int num=_ttoi(strNum);
+
+			strNum="";
+			strNum.Format(L"%X",num);
+
+			strHdl+=strNum+"&";
+
+
+			
 		}
 		
 	CString strFpt;
@@ -318,8 +483,16 @@ public:
 	if(PathFileExists(aixPath)==FALSE){
 		if(f.Open(aixPath, CFile::modeCreate | CFile::modeWrite)!=0){
 
-			f.Write(wStr,wStr.GetLength()*sizeof(wchar_t));
+			f.SeekToBegin();
 
+			char ww[2] ={0xFF,0xFE};
+
+			f.Write(ww,2);
+
+			f.Seek(2,CFile::begin);
+
+			f.Write(wStr,wStr.GetLength()*sizeof(wchar_t));
+			f.Flush();
 			f.Close();
 		}
 	}
@@ -327,20 +500,10 @@ public:
 
 		CString strE;
 		if (f.Open(aixPath, CFile::modeReadWrite, NULL)) {
-			char buffer1[256];
-			if (f.Read(buffer1, 2) == 2)
-			{
-				switch (buffer1[0])
-				{
-				case 0xBBEF:
-					strE=ReadUTF8(f);
-					return;
-				case 0xFFFE:
-					strE=ReadUnicode(f);
-					return;
-				}
-			}
-			strE=ReadAnsi(f);
+			
+			strE=ReadUnicode(f);
+			f.Close();
+				
 		}
 		else {
 			AfxMessageBox(_T("打开记录轴的文件失败！"));
@@ -348,27 +511,33 @@ public:
 			return;
 			
 		}
-	f.Close();
+	
 		
 	wStr+=L"\r\n"+strE;
 	
-		AfxMessageBox(strE);
+		
 	
 
 		if(f.Open(aixPath,CFile::modeNoTruncate|CFile::modeWrite)!=0){
 
 			f.SeekToBegin();
 
-			f.Write(wStr,wStr.GetLength()*sizeof(wchar_t));
+			char ww[2] ={0xFF,0xFE};
 
+			f.Write(ww,2);
+
+			f.Seek(2,CFile::begin);
+
+			f.Write(wStr,wStr.GetLength()*sizeof(wchar_t));
+			f.Flush();
 			f.Close();
 
 		}
 	}
-
+	DeepClone(jig.m_idsC,newPath);
 		
 	}
-	static void ECDMyGroupEcdCC(){
+	/*static void ECDMyGroupEcdCC(){
 	
 		CString path = acDocManager->curDocument()->fileName();
 
@@ -409,7 +578,7 @@ public:
 		else{
 			AfxMessageBox(L"复制时出错，请重新操作。");
 		}
-	}
+	}*/
 	static void   GetSel( AcDbObjectIdArray & ids) {
 		ads_name aName;
 		
@@ -546,8 +715,6 @@ public:
 					int  pitchAndFamily;
 					//Autodesk::AutoCAD::PAL::FontUtils::FontFamily fontFamily;
 
-
-
 					if (styleId != stdId&&styleId != anoId) {
 						setSymbolName(pNewRec, pTextStyle->styleName());
 						pNewRec->setFileName(pTextStyle->fileName());
@@ -675,52 +842,18 @@ public:
 		return objId;
 	}
 
-	static CString ReadAnsi(CFile& file)//读取方式1：ANSI //传对象传引用
-	{
-		file.Seek(0, CFile::begin);//回到头开始
-		char buff[1024];
-		UINT nRet = 0;//三种文件：ANSI:窄字符集 Unicode:宽字符集也叫UTF-16 UTF-8:窄字符集：属于Unicode 
-		CString str;
-		while (nRet = file.Read(buff, sizeof(buff) - 1))//nRet != 0
-		{
-			buff[nRet] = _T('\0');
-			str += buff;
-		}
-		return str;
-	}
-
-	static CString ReadUTF8(CFile& file)//UTF-8文件编码读取
-	{
-		AfxMessageBox(L"UTF8");
-
-		file.Seek(3, CFile::begin);//向后移动三个字节
-		LONGLONG nLen = file.GetLength();//64位操作系统
-		char* p = new char[nLen + 1];
-		nLen = file.Read(p, nLen);
-		p[nLen] = '\0';
-		TCHAR* pText = new TCHAR[nLen / 2 + 2];//防止不够 + 2
-		nLen = MultiByteToWideChar(CP_UTF8, NULL, p, -1, pText, nLen / 2 + 2);//代入p 传出 pText
-		CString str(pText);
-
-		
-		delete[] p;
-		delete[] pText;
-		return str;
-	}
-
 	static CString ReadUnicode(CFile& file)//Unicode文件编码获取
 	{
 		
-		AfxMessageBox(L"ReadUnicode");
 		file.Seek(2, CFile::begin);//向后移动三个字节
 		LONGLONG nLen = file.GetLength();//64位操作系统
 		TCHAR* pText = new TCHAR[nLen / 2 + 1];//防止不够 + 1
 		nLen = file.Read(pText, nLen);
 		pText[nLen / 2] = _T('\0');
-		//SetDlgItemText(IDC_EDIT1, pText);
-
+		
 		CString str(pText);
 		delete[] pText;
+		
 		return str;
 	}
 
@@ -730,6 +863,6 @@ public:
 IMPLEMENT_ARX_ENTRYPOINT(CEcdMirrorApp)
 
 ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdMR, EcdMR, ACRX_CMD_MODAL, NULL)
-ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdRR, EcdRR, ACRX_CMD_MODAL, NULL)
+//ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdRR, EcdRR, ACRX_CMD_MODAL, NULL)
 ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdUpMR, EcdUpMR, ACRX_CMD_MODAL, NULL)
-ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdCC, EcdCC, ACRX_CMD_MODAL, NULL)
+//ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdCC, EcdCC, ACRX_CMD_MODAL, NULL)

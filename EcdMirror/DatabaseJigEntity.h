@@ -25,5 +25,6 @@ private:
 	AcGeMatrix3d		m_Xform;//±‰ªªæÿ’Û
 	AcGePoint3d m_pt1;
 	AcGePoint3d m_pt2;
+	void ChangeLine(AcDbLine* newLine, AcDbLine*oLine);
 };
 
