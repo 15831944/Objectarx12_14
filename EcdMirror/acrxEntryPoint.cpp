@@ -5,12 +5,12 @@
 #include "acedCmdNF.h"
 #include<vector>
 #include"MoveJig.h"
-#include <shlwapi.h>
+//#include <shlwapi.h>
 #include"StringUtil.h"
 #include "algorithm" //sort函数、交并补函数
 #include "iterator" //求交并补使用到的迭代器
 
-#pragma comment(lib,"Shlwapi.lib")
+//#pragma comment(lib,"Shlwapi.lib")
 
 using namespace std;
 //-----------------------------------------------------------------------------
@@ -94,12 +94,12 @@ public:
 
 	}*/
 
-	static void  ECDMyGroupEcdUpMR() {
+	static void  ECDMyGroupMR() {
 
 		CString path = acDocManager->curDocument()->fileName();
 
 		int lastInt = path.ReverseFind('\\');
-
+		ErrorStatus es2=ErrorStatus::eOk;
 
 		CString fileName = path.Mid(lastInt + 1);
 		int lastDot = fileName.ReverseFind('.');
@@ -120,151 +120,110 @@ public:
 		cPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), copyFileName);
 
 
+		vector<AcDbEntity*>vecEnt;
+
 		AcDbObjectIdArray oIds;
-		GetSel(oIds);
-
-		for (int i = 0; i < oIds.length(); i++)
-		{
-			AcDbEntity * l = NULL;
-
-			if (acdbOpenObject(l, oIds[i], AcDb::kForRead) == Acad::eOk) {
-
-				if (l->isA() == AcDbBlockReference::desc()) {
-
-					l->close();
-
-					acutPrintf(L"所选集合不能有块\n");
-
-					return;
-				}
-			}
-		}
-
-		vector<CString>vecHex;
-		for (int i = 0; i < oIds.length(); i++){
+		//GetSel(oIds);
+		AcDbBlockTable *pBlkTbl;
+		es2=acdbHostApplicationServices()->workingDatabase()->getBlockTable(pBlkTbl, AcDb::kForRead);
 		
-			AcDbHandle h=oIds[i].handle();
+		//获取块表记录
+		AcDbBlockTableRecord *pBlkRcd;
+		es2=pBlkTbl->getAt(ACDB_MODEL_SPACE,pBlkRcd,AcDb::kForWrite);
+		pBlkTbl->close();
 
-			Adesk::UInt32 high=h.high();
-			Adesk::UInt32 low=h.low();
+		
 
-			CString strNum;
-			strNum.Format(L"%d%d",high,low);
-
-			int num=_ttoi(strNum);
-
-			strNum="";
-			strNum.Format(L"%X",num);
-
-			vecHex.push_back(strNum);
-		}
-
+		//建立迭代器准备进行循环
+		AcDbBlockTableRecordIterator *pBlkTblRcdltr;
+		es2=pBlkRcd->newIterator(pBlkTblRcdltr);
+		
 	
+		//定义实体指针
+		AcDbEntity *pEnt=NULL;
+		//在读入的块表记录中进行迭代
+		
+
+		for (pBlkTblRcdltr->start();!pBlkTblRcdltr->done();pBlkTblRcdltr->step())
+		{
+			es2=pBlkTblRcdltr->getEntity(pEnt,AcDb::kForWrite);
+			
+			AcDbObjectId tempId;
+			pBlkTblRcdltr->getEntityId(tempId);
+			
+			if(es2==ErrorStatus::eWasOpenForRead){
+				continue;
+				es2=pEnt->upgradeOpen();
+				if(es2==ErrorStatus::eOk){
+				pEnt->erase();
+				pEnt->close();
+				}else{
+					CString text;
+					text.Format(L"es2=%d",es2);
+
+					AfxMessageBox(text);
+				}
+				continue;
+			}
+			//读取实体
+			AcDbEntity * cL=AcDbEntity::cast(pEnt->clone());
+
+			vecEnt.push_back(cL);
+
+			oIds.append(pEnt->objectId());
+
+			pEnt->close();
+
+		}
+		//关闭块表
+		pBlkRcd->close();
+		
+
+		//删除块表记录迭代器
+		delete pBlkTblRcdltr;
+
+		/*CString test;
+
+		test.Format(L"Oids=%d,vecEnts=%d",oIds.length(),vecEnt.size());
+
+		AfxMessageBox(test);*/
+
+
 
 
 		AcGePoint3d formPt, toPt;
 		bool findPt = false;
-		for (int i = 0; i < oIds.length(); i++)
-		{
-			AcDbEntity * l = NULL;
-
-			if (acdbOpenObject(l, oIds[i], AcDb::kForRead) == Acad::eOk) {
-
-				CString appName = "XDataDCZ";
-				resbuf * rb = l->xData(appName);
-
-				if (rb != NULL) {
-
-					resbuf *tempRs = rb;
-
-					tempRs = tempRs->rbnext;
-
-
-					int flag = tempRs->resval.rint;
-					tempRs = tempRs->rbnext;
-					if (flag == 1) {
-						formPt = asPnt3d(tempRs->resval.rpoint);
-						tempRs = tempRs->rbnext;
-						toPt = asPnt3d(tempRs->resval.rpoint);
-						acutRelRb(rb);
-						findPt = true;
-						break;
-					}
-					acutRelRb(rb);
-
-				}
-				l->close();
-			}
-		}
+		
 
 		if (!findPt) {
-			vector<CString>vecStr;
-
+			
+			CString allStr;
 			CFile file;
 			CFileException pError;
 			if(file.Open(aixPath,CFile::modeReadWrite,&pError)!=0){
 
-				CString allStr=ReadUnicode(file);
-				
-				CStringUtil::Split(allStr,L"\r\n",vecStr,false);
-				
-			}else{
-				//AfxMessageBox(pError.m_cause);
+				allStr=ReadUnicode(file);
+			}else
+			{
 				acutPrintf(L"不存在对称轴数据文件\n");
 				file.Close();
 				return;
 			}
 			file.Close();
 			
-			if(vecStr.size()==0){
-				acutPrintf(L"称轴数据文件沒有记录\n");
-				return;
-
-			}
-
-			CString find;
-			for (int i=0;i<(int)vecStr.size();i++)
-			{
-				CString strOne=vecStr[i];
-
-				vector<CString>vecO;
-
-				CStringUtil::Split(strOne,L"&",vecO,false);
-
-				vector<CString> v;
-				sort(vecO.begin(),vecO.end());   
-				sort(vecHex.begin(),vecHex.end());   
-				set_intersection(vecO.begin(),vecO.end(),vecHex.begin(),vecHex.end(),back_inserter(v));
-
-				SIZE_T max=(int)vecO.size()-1>vecHex.size()?vecHex.size():vecO.size()-1;
-
-				int stand=(int)max/2;
-
-				if(stand<1)
-					stand=1;
-
-				if(v.size()>=stand){
-
-					find=strOne;
-					break;
-
-				}
-
-			}
-
-			if(find.IsEmpty()==true){
-
-				acutPrintf(L"称轴数据文件中不存在对应的记录\n");
+			if(allStr.IsEmpty()){
+				acutPrintf(L"对称轴数据文件沒有记录\n");
 				return;
 
 			}
 
 			vector<CString>vecF;
 			vector<CString>vecPt;
-			CStringUtil::Split(find,L"|",vecF,false);
+			//AfxMessageBox(allStr);
+			CStringUtil::Split(allStr,L"|",vecF,false);
 
-			CString s1=vecF[1];
-			CString s2=vecF[2];
+			CString s1=vecF[0];
+			CString s2=vecF[1];
 
 			CStringUtil::Split(s1,L",",vecPt,false);
 
@@ -288,64 +247,88 @@ public:
 		jig.UpdateDoIt(oIds, true);
 
 
-		CopyFile(newPath,cPath,FALSE);
+		//CopyFile(newPath,cPath,FALSE);
 
+		
+
+//删除原实体
+		for (int i=0;i<oIds.length();i++)
+		{
+			AcDbEntity * l = NULL;
+
+			if (acdbOpenObject(l, oIds[i], AcDb::kForWrite) == Acad::eOk) {
+
+				l->erase();
+
+				l->close();
+				l=NULL;
+
+			}
+
+		}
 
 		if(DeepClone(jig.m_idsC,newPath)){
+			ErrorStatus es =ErrorStatus::eOk;
+			AcDbLine * aixLine=new AcDbLine(formPt,jig.m_ToPoint);
 
 			DeleteFile(cPath);
 			acutPrintf(L"更新成功");
+			AcDbExtents ext;
+			AcGePoint3d ptO;
+			for (int i=0;i<(int)vecEnt.size();i++){
+
+				AcDbEntity * ent1=vecEnt[i];
+
+				es=ent1->getGeomExtents(ext);
+				if(es==ErrorStatus::eOk){
+					ptO=ext.maxPoint();
+					break;
+				}
+			}
+
+			AcGePoint3d ptOnL;
+
+			aixLine->getClosestPointTo(ptO,ptOnL,Adesk::kTrue);
+
+			AcGeVector3d vec=(ptO-ptOnL).normal();
+
+
+			DeleteOnDesDb(vec,newPath,aixLine);
 
 		}
 		else{
 
-			DeleteFile(newPath);
-			CopyFile(cPath,newPath,FALSE);
+			//DeleteFile(newPath);
+			//CopyFile(cPath,newPath,FALSE);
 			acutPrintf(L"更新文件不成功！");
 
 		}
 
-		/*if (jig.m_idsC.length() == 0) {
-			return;
-		}*/
-
-		
-
-		/*CopyFile(newPath, copyPath, TRUE);
-
-		DeleteFile(newPath);
-
-		otherIds.append(jig.m_idsC);
-
-		if (DeepClone(otherIds, newPath))
-		{
-			DeleteFile(copyPath);
-		}
-		else {
-			CopyFile(copyPath, newPath, FALSE);
-
-			DeleteFile(copyPath);
-		}*/
-
-		/*for (int i = 0; i < jig.m_idsC.length(); i++)
+		for (int i=0;i<jig.m_idsC.length();i++)
 		{
 			AcDbEntity * l = NULL;
 
 			if (acdbOpenObject(l, jig.m_idsC[i], AcDb::kForWrite) == Acad::eOk) {
 
 				l->erase();
-				l->close();
-				l = NULL;
-			}
-		}*/
 
-		//DeepClone(otherIds, newPath);
-		
+				l->close();
+				l=NULL;
+
+			}
+
+		}
+
+		for (int i=0;i<(int)vecEnt.size();i++)
+		{
+
+			PostToModelSpace(vecEnt[i]);
+			vecEnt[i]->close();
+		}
 	}
 
-
-	static void ECDMyGroupEcdMR() {
-
+	static void ECDMyGroupMM() {
+		ErrorStatus es =ErrorStatus::eOk;
 		CString path = acDocManager->curDocument()->fileName();
 
 		int lastInt = path.ReverseFind('\\');
@@ -385,37 +368,19 @@ public:
 
 		fPt = asPnt3d(pt1);
 
-		
-		for (int i = 0; i < oIds.length(); i++)
-		{
-			AcDbEntity * l = NULL;
-
-			if (acdbOpenObject(l, oIds[i], AcDb::kForRead) == Acad::eOk) {
-
-				if (l->isA() == AcDbBlockReference::desc()) {
-
-					l->close();
-
-					AfxMessageBox(L"所选集合中包含了块");
-					return;
-					//continue;
-				}
-			}
-		}
-
+		vector<AcDbEntity*>vecEnt;
 
 		CMoveJig jig(fPt);
 
 		jig.doIt(oIds, true);
 
-
 		if (jig.m_idsC.length() == 0) {
 			return;
 		}
 
-	CString strHdl;
-	ACHAR *buffer;
+	//CString strHdl;
 
+//写xData
 	for (int i = 0; i < oIds.length(); i++)
 		{
 			AcDbEntity * l = NULL;
@@ -449,7 +414,7 @@ public:
 
 			}
 		
-			AcDbHandle h=oIds[i].handle();
+			/*AcDbHandle h=oIds[i].handle();
 
 			Adesk::UInt32 high=h.high();
 			Adesk::UInt32 low=h.low();
@@ -462,12 +427,40 @@ public:
 			strNum="";
 			strNum.Format(L"%X",num);
 
-			strHdl+=strNum+"&";
+			strHdl+=strNum+"&";*/
 
 
 			
 		}
-		
+//克隆原实体		
+	for (int i = 0; i < oIds.length(); i++)
+	{
+		AcDbEntity * l = NULL;
+
+		if (acdbOpenObject(l, oIds[i], AcDb::kForWrite) == Acad::eOk) {
+
+			AcDbEntity * cL=AcDbEntity::cast(l->clone());
+
+			vecEnt.push_back(cL);
+			l->close();
+		}
+	}
+//原实体删除
+	for (int i=0;i<oIds.length();i++)
+	{
+		AcDbEntity * l = NULL;
+
+		if (acdbOpenObject(l, oIds[i], AcDb::kForWrite) == Acad::eOk) {
+
+			l->erase();
+
+			l->close();
+			l=NULL;
+
+		}
+
+	}
+
 	CString strFpt;
 	strFpt.Format(L"%f,%f,%f",fPt.x,fPt.y,fPt.z);
 
@@ -476,11 +469,11 @@ public:
 
 	CString wStr;
 
-	wStr.Format(L"%s|%s|%s",strHdl,strFpt,strEpt);
+	wStr.Format(L"%s|%s",strFpt,strEpt);
 
 	CFile f;
 
-	if(PathFileExists(aixPath)==FALSE){
+	if(true){
 		if(f.Open(aixPath, CFile::modeCreate | CFile::modeWrite)!=0){
 
 			f.SeekToBegin();
@@ -514,10 +507,7 @@ public:
 	
 		
 	wStr+=L"\r\n"+strE;
-	
-		
-	
-
+	//写入新内容
 		if(f.Open(aixPath,CFile::modeNoTruncate|CFile::modeWrite)!=0){
 
 			f.SeekToBegin();
@@ -534,51 +524,127 @@ public:
 
 		}
 	}
+
 	DeepClone(jig.m_idsC,newPath);
-		
-	}
-	/*static void ECDMyGroupEcdCC(){
 	
-		CString path = acDocManager->curDocument()->fileName();
+	AcDbLine * aixLine=new AcDbLine(fPt,jig.m_ToPoint);
+	
+	AcDbExtents ext;
+	AcGePoint3d ptO;
+	for (int i=0;i<(int)vecEnt.size();i++){
 
-		int lastInt = path.ReverseFind('\\');
-
-
-		CString fileName = path.Mid(lastInt + 1);
-		int lastDot = fileName.ReverseFind('.');
-
-		CString newFileName;
-		newFileName.Format(L"%s_M", fileName.Mid(0, lastDot));
-
-		CString  newPath;
-		newPath.Format(L"%s\\%s.dwg", path.Mid(0, lastInt), newFileName);
-
-		AcDbObjectIdArray  ids;
+		AcDbEntity * ent1=vecEnt[i];
 		
-		GetSel(ids);
+		es=ent1->getGeomExtents(ext);
+		if(es==ErrorStatus::eOk){
+			ptO=ext.maxPoint();
+			break;
+		}
+	}
+	
+	AcGePoint3d ptOnL;
 
-		if(ids.length()==0){
-			return;
+	aixLine->getClosestPointTo(ptO,ptOnL,Adesk::kTrue);
+
+	AcGeVector3d vec=(ptO-ptOnL).normal();
+
+
+	DeleteOnDesDb(vec,newPath,aixLine);
+
+//镜像实体删除
+	for (int i=0;i<jig.m_idsC.length();i++)
+	{
+		AcDbEntity * l = NULL;
+
+		if (acdbOpenObject(l, jig.m_idsC[i], AcDb::kForWrite) == Acad::eOk) {
+
+			l->erase();
+
+			l->close();
+			l=NULL;
+
 		}
 
-		if(DeepClone(ids,newPath))
-		{
-		for (int i = 0; i > ids.length(); i++)
-		{
-			AcDbEntity * l = NULL;
+	}
 
-			if (acdbOpenObject(l, ids[i], AcDb::kForWrite) == Acad::eOk) {
+	for (int i=0;i<(int)vecEnt.size();i++)
+	{
 
-				l->erase();
-				l->close();
-				l = NULL;
+		PostToModelSpace(vecEnt[i]);
+
+		vecEnt[i]->close();
+
+	}
+
+}
+
+	static void DeleteOnDesDb(const AcGeVector3d&vec,CString path,AcDbLine*aixLine){
+		ErrorStatus es=ErrorStatus::eOk;
+		AcDbDatabase *pDb=new AcDbDatabase(Adesk::kFalse);
+		pDb->readDwgFile(path,AcDbDatabase::OpenMode::kForReadAndWriteNoShare);
+		//获取块表
+		AcDbBlockTable *pBlkTbl;
+		pDb->getSymbolTable(pBlkTbl,AcDb::kForRead);
+		//获取块表记录
+		AcDbBlockTableRecord *pBlkRcd;
+		pBlkTbl->getAt(ACDB_MODEL_SPACE,pBlkRcd,AcDb::kForWrite);
+		pBlkTbl->close();
+		//建立迭代器准备进行循环
+		AcDbBlockTableRecordIterator *pBlkTblRcdltr;
+		pBlkRcd->newIterator(pBlkTblRcdltr);
+		//定义实体指针
+		AcDbEntity *pEnt=NULL;
+		//在读入的块表记录中进行迭代
+		AcDbExtents ext;
+
+		for (pBlkTblRcdltr->start();!pBlkTblRcdltr->done();pBlkTblRcdltr->step())
+		{
+			
+
+			//读取实体
+			pBlkTblRcdltr->getEntity(pEnt,AcDb::kForWrite);
+			AcGePoint3d ptO;
+			es=pEnt->getGeomExtents(ext);
+			if(es!=ErrorStatus::eOk){
+				 pEnt->close();
+				continue;
 			}
+			ptO=ext.maxPoint();
+
+			AcGePoint3d ptOnL;
+
+			aixLine->getClosestPointTo(ptO,ptOnL,Adesk::kTrue);
+
+			AcGeVector3d vec2=(ptO-ptOnL).normal();
+
+			if(vec2.x*vec.x>=0&&vec2.y*vec.y>=0){
+
+				pEnt->erase();
+
+				pEnt->close();
+				
+
+			}
+			else{
+				pEnt->close();
+				
+			}
+			
 		}
-		}
-		else{
-			AfxMessageBox(L"复制时出错，请重新操作。");
-		}
-	}*/
+		//关闭块表
+		pBlkRcd->close();
+		es=pDb->saveAs(path);
+
+		
+		//删除块表记录迭代器
+		delete pBlkTblRcdltr;
+		//删除图形
+		delete pDb;
+
+		delete aixLine;
+
+	}
+
 	static void   GetSel( AcDbObjectIdArray & ids) {
 		ads_name aName;
 		
@@ -618,6 +684,10 @@ public:
 
 		AcDbDatabase* pTempDb = new AcDbDatabase();
 
+		pTempDb->setLtscale(acdbHostApplicationServices()->workingDatabase()->ltscale());
+		pTempDb->setLineWeightDisplay(acdbHostApplicationServices()->workingDatabase()->lineWeightDisplay());
+		pTempDb->setFillmode(acdbHostApplicationServices()->workingDatabase()->fillmode());
+		
 		AcDbIdMapping idMap;
 		es = idMap.setDestDb(pTempDb);
 
@@ -862,7 +932,7 @@ public:
 //-----------------------------------------------------------------------------
 IMPLEMENT_ARX_ENTRYPOINT(CEcdMirrorApp)
 
-ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdMR, EcdMR, ACRX_CMD_MODAL, NULL)
+ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, MR, MR, ACRX_CMD_MODAL, NULL)
 //ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdRR, EcdRR, ACRX_CMD_MODAL, NULL)
-ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdUpMR, EcdUpMR, ACRX_CMD_MODAL, NULL)
+ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, MM, MM, ACRX_CMD_MODAL, NULL)
 //ACED_ARXCOMMAND_ENTRY_AUTO(CEcdMirrorApp, ECDMyGroup, EcdCC, EcdCC, ACRX_CMD_MODAL, NULL)
