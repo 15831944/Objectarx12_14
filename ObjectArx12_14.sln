@@ -5,6 +5,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EcdMirror", "EcdMirror\EcdM
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EcdZheZhao", "EcdZheZhao\EcdZheZhao.vcxproj", "{27D7612C-0FCF-4BC1-9667-EC9155D0D3A4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EcdMirror14", "EcdMirror14\EcdMirror14.vcxproj", "{E51A5B33-6BC6-4FCE-A0DC-A6C6ACFDC718}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -29,6 +31,14 @@ Global
 		{27D7612C-0FCF-4BC1-9667-EC9155D0D3A4}.Release|Win32.Build.0 = Release|Win32
 		{27D7612C-0FCF-4BC1-9667-EC9155D0D3A4}.Release|x64.ActiveCfg = Release|x64
 		{27D7612C-0FCF-4BC1-9667-EC9155D0D3A4}.Release|x64.Build.0 = Release|x64
+		{E51A5B33-6BC6-4FCE-A0DC-A6C6ACFDC718}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E51A5B33-6BC6-4FCE-A0DC-A6C6ACFDC718}.Debug|Win32.Build.0 = Debug|Win32
+		{E51A5B33-6BC6-4FCE-A0DC-A6C6ACFDC718}.Debug|x64.ActiveCfg = Debug|x64
+		{E51A5B33-6BC6-4FCE-A0DC-A6C6ACFDC718}.Debug|x64.Build.0 = Debug|x64
+		{E51A5B33-6BC6-4FCE-A0DC-A6C6ACFDC718}.Release|Win32.ActiveCfg = Release|Win32
+		{E51A5B33-6BC6-4FCE-A0DC-A6C6ACFDC718}.Release|Win32.Build.0 = Release|Win32
+		{E51A5B33-6BC6-4FCE-A0DC-A6C6ACFDC718}.Release|x64.ActiveCfg = Release|x64
+		{E51A5B33-6BC6-4FCE-A0DC-A6C6ACFDC718}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
