@@ -711,6 +711,10 @@ public:
 			AfxMessageBox(L"CopyTextStyleIdInfo false");
 			return false;
 		}
+		/*if(!CopyDimStyle(acdbHostApplicationServices()->workingDatabase(), pTempDb)){
+			AfxMessageBox(L"CopyDimStyleIdInfo false");
+			return false;
+		}*/
 
 		pTempDb->getSymbolTable(pBT1, AcDb::kForRead);
 		pBT1->getAt(ACDB_MODEL_SPACE, modelSpaceId);
@@ -814,52 +818,61 @@ public:
 			if ((es = pIterator->getRecordId(styleId)) == Acad::eOk)
 			{
 				AcDbTextStyleTableRecord* pNewRec = NULL;
+				
 				if (styleId == stdId) {
 
 					es=pNewSt->getAt(L"Standard", pNewRec, AcDb::kForWrite);
+				
 				}
 				else if (styleId == anoId) {
 					es=pNewSt->getAt(L"Annotative", pNewRec, AcDb::kForWrite);
 					
 				}
-				else {
+				/*else {
 					pNewRec = new AcDbTextStyleTableRecord;
-				}
+				}*/
 
 				//AcGiTextStyle *pTextStyle = new AcGiTextStyle(pToDataDes);
-				if (true/*(es = fromAcDbTextStyle(*pTextStyle, styleId)) == Acad::eOk*/)
+				if (styleId == stdId||styleId == anoId/*(es = fromAcDbTextStyle(*pTextStyle, styleId)) == Acad::eOk*/)
 				{
+
+
 					ACHAR * pTypeface = NULL;
 					Adesk::Boolean bold;
 					Adesk::Boolean italic;
 					int  charset;
 					int  pitchAndFamily;
 					//Autodesk::AutoCAD::PAL::FontUtils::FontFamily fontFamily;
-					ACHAR *na,*na1;					
+					ACHAR *na,*na1,*bigFontN;					
 					txtRec->getName(na);
 					txtRec->fileName(na1);
-					if (styleId != stdId&&styleId != anoId) {
+					txtRec->bigFontFileName(bigFontN);
+					Adesk::UInt8 flagB=txtRec->flagBits();
 						setSymbolName(pNewRec,na );
 						es=pNewRec->setFileName(na1);
-						es=pNewRec->setBigFontFileName(_T(""));
-					}
+						es=pNewRec->setBigFontFileName(bigFontN);
+						pNewRec->setFlagBits(flagB);
+						pNewRec->setIsVertical(txtRec->isVertical());
+						pNewRec->setIsShapeFile(txtRec->isShapeFile());
+						
 					    es =   txtRec->font(pTypeface, bold, italic, charset, pitchAndFamily);  
 					
 					if (es == Acad::eOk)
 						es=pNewRec->setFont(pTypeface, bold, italic, charset, pitchAndFamily);
 					if (styleId != stdId&&styleId != anoId)
 					{
-						es=pNewRec->setTextSize(pNewRec->textSize());
+						es=pNewRec->setTextSize(txtRec->textSize());
 
-						es=pNewRec->setXScale(pNewRec->xScale());
+						es=pNewRec->setXScale(txtRec->xScale());
 					}
-					es=pNewRec->setObliquingAngle(pNewRec->obliquingAngle());
+					es=pNewRec->setObliquingAngle(txtRec->obliquingAngle());
 
 					if (styleId == stdId || styleId == anoId) {
 						es=pNewRec->close();
+						pNewRec=NULL;
 						
 					}
-					else {
+					/*else {
 						es=pNewSt->close();
 						pNewSt=NULL;
 						bool flag=false;
@@ -867,7 +880,7 @@ public:
 						flag=addToSymbolTableAndClose(pNewRec, pToDataDes);
 						
 						pToDataDes->getSymbolTable(pNewSt, AcDb::kForWrite);
-					}
+					}*/
 			
 				}
 				if(txtRec!=NULL){
@@ -898,7 +911,230 @@ public:
 		
 		return true;
 	}
+	static bool  CopyDimStyle(AcDbDatabase *pFromDataSrc/*in*/, AcDbDatabase *pToDataDes/*in*/)
+	{
+		
 
+		if (pFromDataSrc == NULL || pToDataDes == NULL)
+			return false;
+		
+		AcDbDimStyleTable *pStyleTable = NULL;
+		AcDbDimStyleTable *pNewSt = NULL;
+		Acad::ErrorStatus es = Acad::eOk;
+		es = pFromDataSrc->getDimStyleTable(pStyleTable, AcDb::kForRead);
+		if (es != Acad::eOk)
+		{
+			CString ttt;
+			ttt.Format(L"pStyleTable open false=%d",es);
+			AfxMessageBox(ttt);
+
+			return false;
+		}
+		es = pToDataDes->getSymbolTable(pNewSt, AcDb::kForWrite);
+		if (es != Acad::eOk)
+		{
+			CString ttt;
+			ttt.Format(L"pNewSt open false=%d",es);
+			AfxMessageBox(ttt);
+
+			pStyleTable->close();
+			pStyleTable=NULL;
+			return false;
+
+		}
+
+
+
+		AcDbDimStyleTableIterator *pIterator = NULL;
+		es = pStyleTable->newIterator(pIterator);
+		if (es != Acad::eOk)
+		{
+			CString ttt;
+			ttt.Format(L"pStyleTable->newIterator false=%d",es);
+			AfxMessageBox(ttt);
+
+			pStyleTable->close();
+			pStyleTable = NULL;
+
+			pNewSt->close();
+			pNewSt=NULL;
+			return false;
+		}
+
+		
+
+		AcDbObjectId stdId, anoId,iso_25;
+		pStyleTable->getAt(L"Standard", stdId);
+		
+		pStyleTable->getAt(L"Annotative", anoId);
+		
+		
+		AcDbDimStyleTableRecord *txtRec=NULL;
+		for (pIterator->start(); !pIterator->done(); pIterator->step())
+		{
+			AcDbObjectId styleId = AcDbObjectId::kNull;
+
+			if ((es = pIterator->getRecord(txtRec,AcDb::kForRead)) != Acad::eOk){
+				CString ttt;
+				ttt.Format(L"pIterator->getRecord(txtRec,AcDb::kForRead))=%d",es);
+				AfxMessageBox(ttt);
+
+				if(txtRec!=NULL){
+					txtRec->close();
+				}
+
+			}
+
+			if ((es = pIterator->getRecordId(styleId)) == Acad::eOk)
+			{
+
+				AcDbDimStyleTableRecord* pNewRec = NULL;
+				
+				if (styleId == stdId) {
+
+					es=pNewSt->getAt(L"Standard", pNewRec, AcDb::kForWrite);
+
+				}
+				else if (styleId == anoId) {
+					es=pNewSt->getAt(L"Annotative", pNewRec, AcDb::kForWrite);
+
+				}
+				/*else if (styleId == iso_25) {
+				es=pNewSt->getAt(L"ISO-25", pNewRec, AcDb::kForWrite);
+
+				}*/
+				if(es!=ErrorStatus::eOk||pNewRec==NULL){
+					if(pNewRec!=NULL){
+						pNewRec->close();
+						pNewRec=NULL;
+					}
+					if(txtRec!=NULL){
+						es=txtRec->close();
+						txtRec=NULL;
+					}
+					continue;
+				}
+				es=pNewRec->setDimadec(txtRec->dimadec());
+				es=pNewRec->setDimalt(txtRec->dimalt());
+				es=pNewRec->setDimaltd(txtRec->dimaltd());
+				es=pNewRec->setDimaltf(txtRec->dimaltf());
+				es=pNewRec->setDimaltmzf(txtRec->dimaltmzf());
+				es=pNewRec->setDimaltmzs(txtRec->dimaltmzs());
+				es=pNewRec->setDimaltrnd(txtRec->dimaltrnd());
+				es=pNewRec->setDimalttd(txtRec->dimalttd());
+				es=pNewRec->setDimalttz(txtRec->dimalttz());
+				es=pNewRec->setDimaltu(txtRec->dimaltu());
+				es=pNewRec->setDimaltz(txtRec->dimaltz());
+				es=pNewRec->setDimapost(txtRec->dimapost());
+				es=pNewRec->setDimarcsym(txtRec->dimarcsym());
+				es=pNewRec->setDimasz(txtRec->dimasz());
+				es=pNewRec->setDimatfit(txtRec->dimatfit());
+				
+				es=pNewRec->setDimaunit(txtRec->dimaunit());
+				es=pNewRec->setDimazin(txtRec->dimazin());
+				es=pNewRec->setDimblk(txtRec->dimblk());
+				es=pNewRec->setDimblk1(txtRec->dimblk1());
+				es=pNewRec->setDimblk2(txtRec->dimblk2());
+				es=pNewRec->setDimcen(txtRec->dimcen());
+				es=pNewRec->setDimclrd(txtRec->dimclrd());
+				es=pNewRec->setDimclre(txtRec->dimclre());
+				es=pNewRec->setDimclrt(txtRec->dimclrt());
+				es=pNewRec->setDimdec(txtRec->dimdec());
+				es=pNewRec->setDimdle(txtRec->dimdle());
+				
+				es=pNewRec->setDimdli(txtRec->dimdli());
+				es=pNewRec->setDimdsep(txtRec->dimdsep());
+				
+				es=pNewRec->setDimexe(txtRec->dimexe());
+				es=pNewRec->setDimexo(txtRec->dimexo());
+				
+				es=pNewRec->setDimfit(txtRec->dimfit());
+				es=pNewRec->setDimfrac(txtRec->dimfrac());
+				es=pNewRec->setDimfxlen(txtRec->dimfxlen());
+				es=pNewRec->setDimfxlenOn(txtRec->dimfxlenOn());
+				
+				es=pNewRec->setDimgap(txtRec->dimgap());
+				es=pNewRec->setDimjogang(txtRec->dimjogang());
+				es=pNewRec->setDimjust(txtRec->dimjust());
+				
+				es=pNewRec->setDimldrblk(txtRec->dimldrblk());
+				es=pNewRec->setDimlfac(txtRec->dimlfac());
+				es=pNewRec->setDimlim(txtRec->dimlim());
+				es=pNewRec->setDimltype(txtRec->dimltype());
+				es=pNewRec->setDimltex1(txtRec->dimltex1());
+				es=pNewRec->setDimltex2(txtRec->dimltex2());
+				
+				es=pNewRec->setDimlunit(txtRec->dimlunit());
+				es=pNewRec->setDimlwd(txtRec->dimlwd());
+				es=pNewRec->setDimlwe(txtRec->dimlwe());
+				
+				es=pNewRec->setDimmzf(txtRec->dimmzf());
+				es=pNewRec->setDimmzs(txtRec->dimmzs());
+				es=pNewRec->setDimpost(txtRec->dimpost());
+				es=pNewRec->setDimrnd(txtRec->dimrnd());
+				
+				es=pNewRec->setDimsah(txtRec->dimsah());
+				es=pNewRec->setDimscale(txtRec->dimscale());
+				es=pNewRec->setDimsd1(txtRec->dimsd1());
+				es=pNewRec->setDimsd2(txtRec->dimsd2());			
+				es=pNewRec->setDimse1(txtRec->dimse1());
+				es=pNewRec->setDimse2(txtRec->dimse2());
+				es=pNewRec->setDimsoxd(txtRec->dimsoxd());
+				es=pNewRec->setDimtad(txtRec->dimtad());
+				es=pNewRec->setDimtdec(txtRec->dimtdec());
+				es=pNewRec->setDimtfac(txtRec->dimtfac());
+				es=pNewRec->setDimtfill(txtRec->dimtfill());
+				es=pNewRec->setDimtfillclr(txtRec->dimtfillclr());
+				es=pNewRec->setDimtih(txtRec->dimtih());
+				es=pNewRec->setDimtix(txtRec->dimtix());
+				es=pNewRec->setDimtm(txtRec->dimtm());
+				es=pNewRec->setDimtmove(txtRec->dimtmove());
+				es=pNewRec->setDimtofl(txtRec->dimtofl());
+				es=pNewRec->setDimtoh(txtRec->dimtoh());
+				es=pNewRec->setDimtolj(txtRec->dimtolj());
+				es=pNewRec->setDimtp(txtRec->dimtp());
+				es=pNewRec->setDimtsz(txtRec->dimtsz());
+				es=pNewRec->setDimtvp(txtRec->dimtvp());
+				es=pNewRec->setDimtxsty(txtRec->dimtxsty());
+				es=pNewRec->setDimtxt(txtRec->dimtxt());
+				es=pNewRec->setDimtxtdirection(txtRec->dimtxtdirection());
+				es=pNewRec->setDimtzin(txtRec->dimtzin());
+				es=pNewRec->setDimunit(txtRec->dimunit());
+				es=pNewRec->setDimupt(txtRec->dimupt());
+				es=pNewRec->setDimzin(txtRec->dimzin());
+				if(styleId == stdId||styleId==anoId){
+					es=pNewRec->close();
+					pNewRec=NULL;
+				}
+				}
+				if(txtRec!=NULL){
+					es=txtRec->close();
+
+					txtRec=NULL;
+					
+					
+				}
+				
+			}
+		
+		
+		if(pNewSt!=NULL){
+			es=pNewSt->close();
+			pNewSt=NULL;
+			
+		}
+		if (pIterator != NULL)
+		{
+			delete pIterator;
+			pIterator = NULL;
+			es=pStyleTable->close();
+
+			pStyleTable = NULL;
+			
+		}
+		
+		return true;
+	}
 	static BOOL setSymbolName(AcDbSymbolTableRecord* newRec, LPCTSTR newName)
 	{
 		Acad::ErrorStatus es;
