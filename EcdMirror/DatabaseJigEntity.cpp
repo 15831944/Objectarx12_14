@@ -107,9 +107,9 @@ BOOL CDatabaseJigEntity::transformedCopy()
 		AcDbMText*mtxt = NULL;
 		AcDbLine*line=NULL;
 		AcGeVector3d vec = AcGeVector3d::kIdentity;
-
+		
 		dim = AcDbDimension::cast(pEnt);
-
+		
 		if (0 == i)
 		{
 			blkRecId = pEnt->blockId();
